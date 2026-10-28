@@ -26,13 +26,15 @@ services:
       DB_ADMIN_PW: openmu
     ports:
       # Admin panel
-      - "8090:80"
+      - "8090:8080"
       # Connect Server
       - "44405:44405"
-      # Game Servers (Server 1: 55901-55903, Server 2: 55904-55906)
+      # Game Servers (Server 1: 55901-55906 and 45901-45906)
       - "55901-55906:55901-55906"
+      - "45901-45906:45901-45906"
       # Chat Server
       - "55980:55980"
+      - "45980:45980"
     command: ["-autostart"]
 
 volumes:

@@ -2,6 +2,7 @@ const { WebSocketServer } = require("ws");
 const PacketParser = require("./packet-parser");
 const PacketRewriter = require("./packet-rewriter");
 const { createTcpConnection } = require("./tcp-client");
+const { SimpleModulusSession } = require("./simple-modulus");
 
 function createProxyServer(config) {
   const {
@@ -53,6 +54,9 @@ function createProxyServer(config) {
       );
     }
 
+    const isGameServer = tcpPort !== connectPort;
+    const smSession = isGameServer ? new SimpleModulusSession() : null;
+
     const rewriter = new PacketRewriter(
       proxyPublicHost,
       proxyPublicPort,
@@ -76,6 +80,16 @@ function createProxyServer(config) {
     serverParser.on("packet", (packet) => {
       if (!wsAlive) return;
 
+      if (isGameServer && (packet[0] === 0xc3 || packet[0] === 0xc4)) {
+        try {
+          packet = smSession.decryptServerPacket(packet);
+        } catch (err) {
+          console.error(`[${tag}] Failed to decrypt server packet:`, err.message);
+        }
+      }
+
+      console.log(`[${tag} S->C] len=${packet.length} hex=${packet.toString("hex")}`);
+
       const result = rewriter.processServerPacket(packet);
 
       if (result.rewritten && result.gameServerTarget) {
@@ -94,7 +108,16 @@ function createProxyServer(config) {
 
     ws.on("message", (data) => {
       if (!tcpAlive) return;
-      tcp.write(Buffer.isBuffer(data) ? data : Buffer.from(data));
+      let buf = Buffer.isBuffer(data) ? data : Buffer.from(data);
+      console.log(`[${tag} C->S] len=${buf.length} hex=${buf.toString("hex")}`);
+      if (isGameServer) {
+        try {
+          buf = smSession.encryptClientPacket(buf);
+        } catch (err) {
+          console.error(`[${tag}] Failed to encrypt client packet:`, err.message);
+        }
+      }
+      tcp.write(buf);
     });
 
     ws.on("close", (code) => {

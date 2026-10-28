@@ -1,10 +1,12 @@
 node_modules/
 .env
+__pycache__/
 
 # WASM client files (compiled separately, not part of this repo)
 public/*.wasm
 public/*.wasm.bak
 public/*.data
+public/*.js
 
 # OS files
 .DS_Store
@@ -16,3 +18,8 @@ Thumbs.db
 
 # Cloned client repositories (for local analysis only)
 clients/
+
+tests/screenshots/
+
+*.dll
+*.log
