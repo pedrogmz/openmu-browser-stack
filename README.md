@@ -183,6 +183,28 @@ Copy `.env.example` to `.env`:
 
 **OpenMU won't start:** `docker compose down -v && docker compose up -d` to clean up and restart.
 
+**Inventory crashes with `RuntimeError: index out of bounds`:** The client is
+being resolved as the Season 6 GMO client, so OpenMU sends the legacy 12-byte
+item format while the WASM client only parses the extended format. OpenMU's
+seed writes `20404` into both the GMO and the Season 106 client definitions;
+the GMO row is registered last and wins. Run the fix and restart OpenMU:
+
+```bash
+# Bash
+docker exec -i openmu-browser-stack-postgres-1 psql -U openmu -d openmu < scripts/fix-client-version.sql
+docker restart openmu-browser-stack-openmu-1
+```
+
+```powershell
+# PowerShell
+Get-Content scripts/fix-client-version.sql -Raw | docker exec -i openmu-browser-stack-postgres-1 psql -U openmu -d openmu -f -
+docker restart openmu-browser-stack-openmu-1
+```
+
+The login log should then say `version:Season 106 Episode 3 English` instead of
+`version:Season 6 Episode 3 English`. Re-run the script after
+`docker compose down -v`, since a fresh volume is re-seeded with the bad value.
+
 ## License
 
 MIT

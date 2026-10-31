@@ -29,12 +29,14 @@
         background: #08080a;
         overflow: hidden;
       }
+      /* The canvas fills the whole browser window: SDL sizes its backing store
+         from the element's CSS size, so the game renders at the real viewport
+         size instead of being stretched from a fixed 4:3 box. */
       #game-stage {
-        width: 1024px;
-        height: 768px;
-        position: relative;
-        transform-origin: center center;
-        box-shadow: 0 0 40px rgba(0, 0, 0, 0.9);
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
       }
       canvas#canvas {
         display: block;
@@ -243,24 +245,13 @@
         onRuntimeInitialized: function () {
           document.getElementById("info").style.display = "none";
           document.getElementById("game-controls").style.display = "flex";
-          resizeGameStage();
           focusGameCanvas();
           console.log("[OpenMU] WASM runtime initialized");
         },
       };
 
-      // Responsive Stage Scaling (1024x768 4:3 fixed aspect ratio)
-      function resizeGameStage() {
-        var stage = document.getElementById("game-stage");
-        if (!stage) return;
-        var vw = window.innerWidth;
-        var vh = window.innerHeight;
-        var scale = Math.min(vw / 1024, vh / 768);
-        stage.style.transform = "scale(" + scale + ")";
-      }
-      window.addEventListener("resize", resizeGameStage);
-      window.addEventListener("DOMContentLoaded", resizeGameStage);
-      resizeGameStage();
+      // The stage is CSS-sized to the viewport, so the browser resize itself is
+      // what tells SDL (and the game) the new size. No JS scaling is needed.
 
       // Focus & Window Active Management
       function focusGameCanvas() {
