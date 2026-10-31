@@ -8,13 +8,16 @@ const HOST = process.env.WEB_HOST || "0.0.0.0";
 const PUBLIC_DIR = path.join(__dirname, "../../public");
 
 const MIME_TYPES = {
-  ".html": "text/html",
-  ".js": "application/javascript",
+  ".html": "text/html; charset=utf-8",
+  ".js": "application/javascript; charset=utf-8",
   ".wasm": "application/wasm",
   ".data": "application/octet-stream",
-  ".css": "text/css",
+  ".css": "text/css; charset=utf-8",
   ".png": "image/png",
   ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+  ".svg": "image/svg+xml",
   ".ico": "image/x-icon",
 };
 

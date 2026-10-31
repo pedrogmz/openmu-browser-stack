@@ -1,18 +1,22 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>OpenMU Browser Stack - WebMU</title>
+    <link rel="preload" as="image" href="loading_screen.jpg" />
     <style>
       * {
         margin: 0;
         padding: 0;
         box-sizing: border-box;
       }
+      html,
       body {
-        width: 100vw;
-        height: 100vh;
+        width: 100%;
+        height: 100%;
+      }
+      body {
         background: #08080a;
         overflow: hidden;
         font-family:
@@ -46,69 +50,344 @@
         user-select: none;
         touch-action: none;
       }
-      #info {
+
+      /* ------------------------------------------------------------------ */
+      /* Initial data download screen                                       */
+      /* ------------------------------------------------------------------ */
+      #mu-loader-panel {
+        position: fixed;
+        inset: 0;
+        z-index: 1200;
+        width: 100%;
+        height: 100%;
+        height: 100dvh;
+        color: #e9dec5;
+        font: 13px/1.5 Georgia, "Times New Roman", serif;
+        opacity: 1;
+        visibility: visible;
+        pointer-events: none;
+        transition:
+          opacity 0.4s ease,
+          visibility 0s;
+        background:
+          linear-gradient(0deg, rgba(3, 6, 9, 0.92), transparent 65%),
+          linear-gradient(
+            90deg,
+            rgba(8, 11, 17, 0.08) 25%,
+            rgba(8, 11, 17, 0.5) 70%,
+            rgba(8, 11, 17, 0.78)
+          ),
+          url("loading_screen.jpg") center / cover no-repeat #080b11;
+      }
+      #mu-loader-panel.is-hidden {
+        opacity: 0;
+        visibility: hidden;
+        transition:
+          opacity 0.4s ease,
+          visibility 0s 0.4s;
+      }
+      #mu-loader-panel .mu-loader-content {
+        position: absolute;
+        right: 7%;
+        top: 50%;
+        transform: translateY(-50%);
+        width: min(470px, 43vw);
+        padding: 30px 34px 26px;
+        border: 1px solid #a08349;
+        background:
+          radial-gradient(ellipse at top, rgba(151, 112, 55, 0.14), transparent 65%),
+          linear-gradient(120deg, #121419f5, #080b10f2);
+        box-shadow:
+          0 0 0 3px #0a0d11,
+          0 0 0 4px #79603c,
+          inset 0 0 0 6px #080b10,
+          inset 0 0 0 7px #715b344d,
+          0 24px 70px #0009;
+        transition:
+          opacity 0.35s ease,
+          visibility 0s;
+      }
+      #mu-loader-panel.is-content-hidden .mu-loader-content {
+        opacity: 0;
+        visibility: hidden;
+        transition:
+          opacity 0.35s ease,
+          visibility 0s 0.35s;
+      }
+      #mu-loader-panel .mu-loader-content::before,
+      #mu-loader-panel .mu-loader-content::after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%) rotate(45deg);
+        width: 9px;
+        height: 9px;
+        border: 1px solid #f0d196;
+        background: #6e4d22;
+        box-shadow: 0 0 12px #fba53760;
+      }
+      #mu-loader-panel .mu-loader-content::before {
+        top: -6px;
+      }
+      #mu-loader-panel .mu-loader-content::after {
+        bottom: -6px;
+      }
+      #mu-loader-panel .mu-loader-artwork {
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: center;
-        height: 100%;
-        color: #aaa;
+        gap: 5px;
+        margin: 0 auto 22px;
+        filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.6));
+        user-select: none;
+      }
+      #mu-loader-panel .mu-wordmark {
+        padding-left: 0.18em;
+        font: 900 44px/1 Georgia, "Times New Roman", serif;
+        letter-spacing: 0.18em;
+        color: #e9c987;
+        background: linear-gradient(
+          180deg,
+          #fff3cc 0%,
+          #e8c47b 35%,
+          #9a6425 62%,
+          #f6dca6 100%
+        );
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      #mu-loader-panel .mu-wordmark-sub {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding-left: 0.34em;
+        font: 10px/1 "Trebuchet MS", "Segoe UI", sans-serif;
+        letter-spacing: 0.34em;
+        color: #b99a63;
+        text-transform: uppercase;
+      }
+      #mu-loader-panel .mu-wordmark-sub::before,
+      #mu-loader-panel .mu-wordmark-sub::after {
+        content: "";
+        width: 30px;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, #a08349);
+      }
+      #mu-loader-panel .mu-wordmark-sub::after {
+        transform: scaleX(-1);
+      }
+      #mu-loader-panel .title {
+        margin: 0 0 24px;
+        font: 16px/1.5 Georgia, "Times New Roman", serif;
+        font-weight: 400;
+        letter-spacing: 2px;
+        color: #ead4a4;
         text-align: center;
-        padding: 2rem;
+        text-shadow: 0 2px 4px #000;
       }
-      #info h1 {
-        color: #e0e0e0;
-        font-size: 1.8rem;
-        margin-bottom: 0.5rem;
+      #mu-loader-panel .row {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 2px;
       }
-      #info p {
-        max-width: 520px;
-        line-height: 1.6;
-        margin: 0.4rem 0;
-        font-size: 0.9rem;
+      #mu-loader-panel .value {
+        color: #f9d993;
+        font-variant-numeric: tabular-nums;
       }
-      #info a {
-        color: #6cb4ee;
+      #mu-loader-panel #mu-loader-percent {
+        font-size: 20px;
       }
-      #info code {
-        background: #222;
-        padding: 2px 6px;
-        border-radius: 3px;
-        font-size: 0.85rem;
+      #mu-loader-panel #mu-loader-phase {
+        color: #d8c9a9;
+        min-width: 0;
+        overflow-wrap: anywhere;
       }
-      #info .tag {
-        display: inline-block;
-        margin-top: 1rem;
-        padding: 4px 12px;
-        border: 1px solid #444;
-        border-radius: 4px;
-        font-size: 0.75rem;
-        color: #888;
+      #mu-loader-panel #mu-loader-progress {
+        height: 13px;
+        margin: 9px 0 12px;
+        padding: 2px;
+        overflow: hidden;
+        border: 1px solid #9b7d42;
+        background: #020405;
+        box-shadow:
+          0 0 0 2px #050709,
+          inset 0 1px 4px #000;
       }
-      #loading {
-        display: none;
-        position: absolute;
-        bottom: 2rem;
-        left: 50%;
-        transform: translateX(-50%);
-        color: #ccc;
-        font-size: 0.85rem;
-        text-align: center;
-      }
-      #loading .bar {
-        width: 260px;
-        height: 6px;
-        background: #333;
-        border-radius: 3px;
-        margin-top: 0.5rem;
-      }
-      #loading .bar-fill {
-        height: 100%;
+      #mu-loader-panel #mu-loader-progress-fill {
         width: 0%;
-        background: #6cb4ee;
-        border-radius: 3px;
-        transition: width 0.2s;
+        height: 100%;
+        background: linear-gradient(
+          0deg,
+          #713810,
+          #d99a38 45%,
+          #ffdc8c 65%,
+          #b87523
+        );
+        box-shadow: 0 0 14px #ed9c3b80;
+        transition: width 140ms linear;
       }
+      #mu-loader-panel #mu-loader-bytes,
+      #mu-loader-panel #mu-loader-remaining {
+        font: 11px/1.5 "Segoe UI", sans-serif;
+        color: #ac9c80;
+      }
+      #mu-loader-panel #mu-loader-small {
+        margin-top: 24px;
+        padding-top: 15px;
+        border-top: 1px solid #a0834938;
+        color: #baad94;
+        font: italic 12px/1.6 Georgia, "Times New Roman", serif;
+        text-align: center;
+      }
+      #mu-loader-panel #mu-loader-error {
+        display: none;
+        margin-top: 18px;
+        padding: 12px 14px;
+        border: 1px solid #8c4a36;
+        background: rgba(51, 15, 10, 0.65);
+        color: #f0c7b8;
+        font: 12px/1.55 "Segoe UI", sans-serif;
+        pointer-events: auto;
+      }
+      #mu-loader-panel #mu-loader-error p {
+        margin: 0 0 10px;
+      }
+      #mu-loader-panel #mu-loader-retry {
+        padding: 8px 16px;
+        border: 1px solid #c9a55a;
+        background: #302619;
+        color: #ffe0a0;
+        font: inherit;
+        cursor: pointer;
+      }
+      #mu-loader-panel #mu-loader-retry:hover {
+        background: #443521;
+      }
+
+      /* ------------------------------------------------------------------ */
+      /* Asset / audio loading panel (after the data download)              */
+      /* ------------------------------------------------------------------ */
+      #mu-asset-loader {
+        position: fixed;
+        right: max(20px, env(safe-area-inset-right));
+        bottom: max(20px, env(safe-area-inset-bottom));
+        z-index: 1201;
+        width: min(350px, calc(100vw - 40px));
+        padding: 17px 20px 16px;
+        border: 1px solid #a08349;
+        background:
+          radial-gradient(ellipse at top, rgba(151, 112, 55, 0.14), transparent 70%),
+          repeating-linear-gradient(
+            135deg,
+            rgba(255, 255, 255, 0.008) 0 1px,
+            transparent 1px 4px
+          ),
+          linear-gradient(120deg, #121419f5, #080b10f5);
+        box-shadow:
+          0 0 0 3px #0a0d11,
+          0 0 0 4px #695333,
+          inset 0 0 0 4px #080b10,
+          inset 0 0 0 5px #715b344d,
+          0 12px 35px #0009;
+        color: #d8c9a9;
+        font: 12px/1.5 Georgia, "Times New Roman", serif;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(10px);
+        transition:
+          opacity 0.3s ease,
+          transform 0.3s ease,
+          visibility 0s 0.3s;
+        pointer-events: none;
+      }
+      #mu-asset-loader.is-visible {
+        opacity: 1;
+        visibility: visible;
+        transform: none;
+        transition-delay: 0s;
+      }
+      #mu-asset-loader .title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 0 0 13px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #a0834938;
+        color: #efd398;
+        font: 13px/1.4 Georgia, "Times New Roman", serif;
+        letter-spacing: 1.7px;
+        text-transform: uppercase;
+        text-shadow: 0 2px 4px #000;
+      }
+      #mu-asset-loader .mu-asset-spinner {
+        width: 15px;
+        height: 15px;
+        flex: 0 0 auto;
+        border: 2px solid rgba(160, 131, 73, 0.35);
+        border-top-color: #ffe2a0;
+        border-radius: 50%;
+        animation: mu-asset-spin 0.9s linear infinite;
+      }
+      #mu-asset-loader .row {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      #mu-asset-loader #mu-asset-phase {
+        min-width: 0;
+        overflow-wrap: anywhere;
+        color: #d8c9a9;
+      }
+      #mu-asset-loader #mu-asset-progress {
+        height: 12px;
+        margin: 10px 0 9px;
+        padding: 2px;
+        overflow: hidden;
+        border: 1px solid #9b7d42;
+        background: #020405;
+        box-shadow:
+          0 0 0 1px #050709,
+          inset 0 1px 4px #000;
+      }
+      #mu-asset-loader #mu-asset-progress-fill {
+        width: 38%;
+        height: 100%;
+        background: linear-gradient(
+          0deg,
+          #713810,
+          #d99a38 45%,
+          #ffdc8c 65%,
+          #b87523
+        );
+        box-shadow: 0 0 10px #ed9c3b60;
+        animation: mu-asset-slide 1.5s cubic-bezier(0.65, 0.05, 0.36, 1) infinite;
+      }
+      #mu-asset-loader #mu-asset-small {
+        margin-top: 5px;
+        color: #9e927a;
+        font: italic 11px/1.5 Georgia, "Times New Roman", serif;
+      }
+      @keyframes mu-asset-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @keyframes mu-asset-slide {
+        0% {
+          transform: translateX(-120%);
+        }
+        100% {
+          transform: translateX(360%);
+        }
+      }
+
+      /* ------------------------------------------------------------------ */
+      /* In-game HUD                                                        */
+      /* ------------------------------------------------------------------ */
       #game-controls {
         position: absolute;
         top: 12px;
@@ -132,7 +411,9 @@
         cursor: pointer;
         font-weight: 600;
         font-size: 13px;
-        transition: background 0.15s, transform 0.1s;
+        transition:
+          background 0.15s,
+          transform 0.1s;
       }
       .hud-btn:hover {
         background: #1d4ed8;
@@ -152,6 +433,77 @@
       }
       .hud-btn.purple:hover {
         background: #6d28d9;
+      }
+
+      @media (max-width: 700px) {
+        #mu-loader-panel {
+          background:
+            linear-gradient(0deg, rgba(3, 6, 9, 0.94), rgba(3, 6, 9, 0.06) 85%),
+            url("loading_screen.jpg") 32% center / cover no-repeat #080b11;
+        }
+        #mu-loader-panel .mu-loader-content {
+          top: auto;
+          bottom: max(28px, env(safe-area-inset-bottom));
+          right: 24px;
+          width: calc(100% - 48px);
+          transform: none;
+          padding: 24px;
+        }
+        #mu-loader-panel .mu-wordmark {
+          font-size: 34px;
+        }
+        #mu-loader-panel .title {
+          font-size: 13px;
+          letter-spacing: 1.5px;
+          margin-bottom: 18px;
+        }
+      }
+      @media (max-width: 480px), (max-height: 500px) {
+        #mu-asset-loader {
+          width: min(290px, calc(100vw - 40px));
+          padding: 12px 15px;
+        }
+        #mu-asset-loader .title {
+          margin-bottom: 8px;
+          padding-bottom: 7px;
+          font-size: 12px;
+        }
+      }
+      @media (max-height: 560px) {
+        #mu-loader-panel .mu-loader-content {
+          top: 50%;
+          bottom: auto;
+          right: 5%;
+          width: min(420px, 55vw);
+          transform: translateY(-50%);
+          padding: 18px 24px;
+        }
+        #mu-loader-panel .mu-loader-artwork {
+          margin-bottom: 12px;
+        }
+        #mu-loader-panel .mu-wordmark {
+          font-size: 30px;
+        }
+        #mu-loader-panel .title {
+          margin-bottom: 12px;
+          font-size: 12px;
+        }
+        #mu-loader-panel #mu-loader-small {
+          margin-top: 12px;
+          padding-top: 8px;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #mu-loader-panel #mu-loader-progress-fill,
+        #mu-asset-loader,
+        #mu-asset-loader #mu-asset-progress-fill {
+          transition: none;
+          animation: none;
+        }
+        #mu-asset-loader #mu-asset-progress-fill {
+          width: 55%;
+          transform: none;
+        }
       }
     </style>
   </head>
@@ -174,128 +526,526 @@
       <button class="hud-btn purple" id="btn-world" title="Entrar al juego con el primer personaje">⚔ Entrar al Mundo</button>
     </div>
 
-    <div id="info">
-      <h1>OpenMU Browser Stack</h1>
-      <p>Server infrastructure is running. No WASM client found.</p>
-      <p>
-        Compile a MU Online client (e.g.
-        <a href="https://github.com/sven-n/MuMain" target="_blank">MuMain</a>)
-        with Emscripten, then place the output files (<code>.js</code>,
-        <code>.wasm</code>, <code>.data</code>) in the
-        <code>public/</code> folder and add a <code>&lt;script&gt;</code> tag
-        below.
-      </p>
-      <span class="tag">WebSocket proxy :7100 &middot; Web :8085</span>
+    <div id="mu-loader-panel" role="status" aria-live="polite">
+      <div class="mu-loader-content">
+        <div class="mu-loader-artwork" aria-hidden="true">
+          <span class="mu-wordmark">MU</span>
+          <span class="mu-wordmark-sub">Online</span>
+        </div>
+        <div class="title">Preparando tu aventura</div>
+        <div class="row">
+          <span id="mu-loader-phase">Preparando la carga</span>
+          <span class="value" id="mu-loader-percent">0%</span>
+        </div>
+        <div id="mu-loader-progress">
+          <div id="mu-loader-progress-fill"></div>
+        </div>
+        <div class="row">
+          <span id="mu-loader-bytes">Calculando tamaño…</span>
+          <span class="value" id="mu-loader-remaining">Preparando descarga</span>
+        </div>
+        <div id="mu-loader-small">
+          La primera carga puede tardar un poco. Mantén esta pestaña abierta.
+        </div>
+        <div id="mu-loader-error" role="alert">
+          <p id="mu-loader-error-text"></p>
+          <button type="button" id="mu-loader-retry">Reintentar</button>
+        </div>
+      </div>
     </div>
 
-    <div id="loading">
-      <span id="load-text">Loading...</span>
-      <div class="bar"><div class="bar-fill" id="bar-fill"></div></div>
+    <div id="mu-asset-loader" role="status" aria-live="polite" aria-hidden="true">
+      <div class="title">
+        <span class="mu-asset-spinner" aria-hidden="true"></span>
+        Cargando recursos
+      </div>
+      <div class="row">
+        <span id="mu-asset-phase">Texturas, modelos y audio</span>
+      </div>
+      <div id="mu-asset-progress">
+        <div id="mu-asset-progress-fill"></div>
+      </div>
+      <div id="mu-asset-small">Preparando el cliente para entrar al mundo…</div>
     </div>
 
     <script>
-      window.addEventListener('unhandledrejection', function (event) {
-        console.error('[UNHANDLED REJECTION]', event.reason);
-      });
+      (function () {
+        "use strict";
 
-      var PROXY_WS_URL = "ws://127.0.0.1:7100";
+        var state = {
+          dataLoaded: 0,
+          dataTotal: 0,
+          dataComplete: false,
+          lastProgressAt: Date.now(),
+          mainHidden: false,
+          shellHidden: false,
+          assetVisible: false,
+          assetHidden: false,
+          failed: false,
+          rafDeferred: false,
+          assetPhaseIndex: 0,
+          assetLogAt: 0,
+          assetTimer: 0,
+        };
 
-      var Module = {
-        ENV: { MU_INPUT_DIAGNOSTICS: "1" },
-        canvas: document.getElementById("canvas"),
+        var ASSET_PHASES = [
+          "Cargando texturas y modelos",
+          "Cargando audio y efectos",
+          "Preparando la escena",
+          "Ajustando la interfaz",
+        ];
 
-        websocket: { url: PROXY_WS_URL },
+        // Keep a reference to the native scheduler. deferNextAnimationFrame()
+        // temporarily replaces window.requestAnimationFrame, and the loader's
+        // own frames must never go through that wrapper.
+        var nativeRaf = window.requestAnimationFrame.bind(window);
 
-        print: function (t) {
-          console.log(t);
-        },
-        printErr: function (t) {
-          console.error(t);
-        },
+        function byId(id) {
+          return document.getElementById(id);
+        }
 
-        setStatus: function (text) {
-          if (!text) {
-            document.getElementById("loading").style.display = "none";
-            return;
+        function formatMb(bytes) {
+          var mb = Math.max(0, Number(bytes) || 0) / 1048576;
+          return mb.toFixed(1) + " MB";
+        }
+
+        function friendlyPhase(percent) {
+          if (percent >= 99.9) return "Abriendo el mundo";
+          if (percent >= 90) return "Preparando efectos y objetos";
+          if (percent >= 65) return "Cargando héroes y criaturas";
+          if (percent >= 30) return "Descargando mapas y escenarios";
+          if (percent >= 8) return "Preparando el continente";
+          return "Preparando la carga";
+        }
+
+        function setLoaderProgress(percent, loadedBytes, totalBytes) {
+          var pct = Math.max(0, Math.min(100, Number(percent) || 0));
+          var phase = byId("mu-loader-phase");
+          if (phase && !state.failed) phase.textContent = friendlyPhase(pct);
+
+          var percentEl = byId("mu-loader-percent");
+          if (percentEl) percentEl.textContent = Math.round(pct) + "%";
+
+          var fill = byId("mu-loader-progress-fill");
+          if (fill) fill.style.width = pct + "%";
+
+          var bytesEl = byId("mu-loader-bytes");
+          if (bytesEl) {
+            bytesEl.textContent =
+              totalBytes > 0
+                ? formatMb(loadedBytes) + " / " + formatMb(totalBytes)
+                : "Calculando tamaño…";
           }
-          console.log("[STATUS]", text);
-          document.getElementById("loading").style.display = "block";
-          document.getElementById("load-text").textContent = text;
-          var m = text.match(/(\d+)\/(\d+)/);
-          if (m) {
-            document.getElementById("bar-fill").style.width =
-              (parseInt(m[1]) / parseInt(m[2])) * 100 + "%";
+
+          var remainingEl = byId("mu-loader-remaining");
+          if (remainingEl) {
+            remainingEl.textContent =
+              totalBytes > 0
+                ? "Faltan " + formatMb(Math.max(0, totalBytes - loadedBytes))
+                : "Preparando descarga";
           }
-        },
+        }
 
-        totalDependencies: 0,
-        monitorRunDependencies: function (left) {
-          this.totalDependencies = Math.max(this.totalDependencies, left);
-          Module.setStatus(
-            left
-              ? "Loading... (" +
-                  (this.totalDependencies - left) +
-                  "/" +
-                  this.totalDependencies +
-                  ")"
-              : "",
-          );
-        },
+        function updateDataProgress(loadedBytes, totalBytes) {
+          var loaded = Math.max(0, Number(loadedBytes) || 0);
+          var total = Math.max(0, Number(totalBytes) || 0);
+          if (total > 0) state.dataTotal = total;
+          if (state.dataTotal > 0) loaded = Math.min(loaded, state.dataTotal);
+          state.dataLoaded = loaded;
+          state.lastProgressAt = Date.now();
+          if (state.dataTotal > 0 && loaded >= state.dataTotal) {
+            state.dataComplete = true;
+          }
+          var pct =
+            state.dataTotal > 0 ? (state.dataLoaded / state.dataTotal) * 100 : 0;
+          setLoaderProgress(pct, state.dataLoaded, state.dataTotal);
+        }
 
-        onRuntimeInitialized: function () {
-          document.getElementById("info").style.display = "none";
-          document.getElementById("game-controls").style.display = "flex";
+        function setAssetPhaseText(text) {
+          var el = byId("mu-asset-phase");
+          if (el) el.textContent = text;
+        }
+
+        function startAssetPhaseCycle() {
+          state.assetPhaseIndex = 0;
+          setAssetPhaseText(ASSET_PHASES[0]);
+          clearInterval(state.assetTimer);
+          state.assetTimer = window.setInterval(function () {
+            if (state.assetHidden) return;
+            // Client log messages are more specific: keep one on screen for a
+            // while before returning to the generic rotation.
+            if (Date.now() - state.assetLogAt < 7000) return;
+            state.assetPhaseIndex =
+              (state.assetPhaseIndex + 1) % ASSET_PHASES.length;
+            setAssetPhaseText(ASSET_PHASES[state.assetPhaseIndex]);
+          }, 3200);
+        }
+
+        // During the asset/audio load the game has not drawn yet, so keep the
+        // wallpaper behind the small loader rather than showing a black canvas.
+        function hideLoaderContent() {
+          if (state.mainHidden || state.failed) return;
+          state.mainHidden = true;
+
+          var panel = byId("mu-loader-panel");
+          if (panel) panel.classList.add("is-content-hidden");
+        }
+
+        function hideLoaderShell() {
+          if (state.shellHidden || state.failed) return;
+          state.shellHidden = true;
+
+          var panel = byId("mu-loader-panel");
+          if (panel) {
+            panel.classList.add("is-hidden");
+            panel.setAttribute("aria-hidden", "true");
+          }
+
+          var controls = byId("game-controls");
+          if (controls) controls.style.display = "flex";
+        }
+
+        function switchToAssetLoader() {
+          if (state.assetVisible || state.failed) return;
+          hideLoaderContent();
+
+          var asset = byId("mu-asset-loader");
+          if (asset) {
+            asset.classList.add("is-visible");
+            asset.setAttribute("aria-hidden", "false");
+          }
+          state.assetVisible = true;
+          startAssetPhaseCycle();
+        }
+
+        function hideAssetLoader() {
+          if (state.assetHidden) return;
+          state.assetHidden = true;
+          clearInterval(state.assetTimer);
+          var asset = byId("mu-asset-loader");
+          if (asset) {
+            asset.classList.remove("is-visible");
+            asset.setAttribute("aria-hidden", "true");
+          }
+        }
+
+        function showLoaderError(message) {
+          if (state.assetHidden) return;
+          state.failed = true;
+          clearInterval(state.assetTimer);
+
+          var panel = byId("mu-loader-panel");
+          if (panel) {
+            panel.classList.remove("is-hidden", "is-content-hidden");
+            panel.removeAttribute("aria-hidden");
+          }
+
+          var asset = byId("mu-asset-loader");
+          if (asset) {
+            asset.classList.remove("is-visible");
+            asset.setAttribute("aria-hidden", "true");
+          }
+
+          var box = byId("mu-loader-error");
+          var text = byId("mu-loader-error-text");
+          if (text) {
+            text.textContent =
+              message ||
+              "No se pudo cargar el juego. Comprueba el servidor y reintenta.";
+          }
+          if (box) box.style.display = "block";
+
+          var phase = byId("mu-loader-phase");
+          if (phase) phase.textContent = "No se pudo cargar el juego";
+
+          var small = byId("mu-loader-small");
+          if (small) {
+            small.textContent =
+              "Comprueba que el servidor web y los archivos del cliente estén disponibles.";
+          }
+        }
+
+        window.muLoaderFail = function (message) {
+          showLoaderError(message);
+        };
+
+        function stripAnsi(text) {
+          return String(text || "").replace(/\u001b\[[0-9;]*m/g, "");
+        }
+
+        function handleClientLog(text) {
+          if (!state.assetVisible || state.assetHidden) return;
+          var lower = stripAnsi(text).toLowerCase();
+          if (lower.indexOf("loaded") < 0) return;
+
+          var phase = "";
+          if (lower.indexOf("monster models") >= 0) {
+            phase = "Cargando modelos de monstruos";
+          } else if (lower.indexOf("monsters") >= 0) {
+            phase = "Cargando monstruos";
+          } else if (lower.indexOf("item models") >= 0) {
+            phase = "Cargando modelos de objetos";
+          } else if (lower.indexOf("items") >= 0) {
+            phase = "Cargando objetos y equipo";
+          } else if (lower.indexOf("effect") >= 0) {
+            phase = "Preparando efectos";
+          } else if (lower.indexOf("models") >= 0) {
+            phase = "Cargando modelos";
+          }
+
+          if (phase) {
+            state.assetLogAt = Date.now();
+            setAssetPhaseText(phase);
+          }
+        }
+
+        // Emscripten schedules the first game frame during callMain(). Delay
+        // exactly that frame by one frame so the browser has time to paint the
+        // asset panel before the client blocks the main thread loading data.
+        function deferNextAnimationFrame() {
+          if (state.rafDeferred) return;
+          state.rafDeferred = true;
+          var intercepted = false;
+          window.requestAnimationFrame = function (callback) {
+            if (intercepted) return nativeRaf(callback);
+            intercepted = true;
+            window.requestAnimationFrame = nativeRaf;
+            return nativeRaf(function () {
+              return nativeRaf(function (timestamp) {
+                callback(timestamp);
+              });
+            });
+          };
+        }
+
+        function scheduleFirstFrameDetection() {
+          // The main loop registered by callMain() is deferred by one frame, so
+          // the first game frame runs in the next animation frame. This check
+          // therefore runs after that first (often very slow) frame has drawn.
+          nativeRaf(function () {
+            hideLoaderContent();
+            nativeRaf(function () {
+              nativeRaf(function () {
+                // Keep the artwork visible for a moment longer: the login
+                // scene and audio can still be loading. If the main thread is
+                // busy this timer is delayed too, so the cover never leaves
+                // while the client is blocked.
+                window.setTimeout(function () {
+                  hideLoaderShell();
+                  hideAssetLoader();
+                }, 900);
+              });
+            });
+          });
+
+          window.setTimeout(function () {
+            if (!state.assetHidden) {
+              var small = byId("mu-asset-small");
+              if (small) {
+                small.textContent =
+                  "El cliente sigue cargando. En equipos lentos puede tardar un poco más.";
+              }
+            }
+          }, 45000);
+
+          window.setTimeout(function () {
+            hideLoaderShell();
+            hideAssetLoader();
+          }, 120000);
+        }
+
+        function focusGameCanvas() {
+          var canvas = byId("canvas");
+          if (!canvas) return;
+          if (document.activeElement !== canvas && canvas.focus) {
+            canvas.focus({ preventScroll: true });
+          }
+          if (typeof window.Module !== "undefined" && window.Module._MuWebSetWindowActive) {
+            window.Module._MuWebSetWindowActive(1);
+          }
+        }
+
+        var retry = byId("mu-loader-retry");
+        if (retry) {
+          retry.addEventListener("click", function () {
+            window.location.reload();
+          });
+        }
+
+        // Keep the hint honest if the connection stalls, without treating a
+        // slow but progressing download as an error.
+        window.setInterval(function () {
+          if (state.dataComplete || state.mainHidden || state.failed) return;
+          var small = byId("mu-loader-small");
+          if (!small) return;
+          if (Date.now() - state.lastProgressAt > 30000) {
+            small.textContent =
+              "La descarga no avanza. Comprobando la conexión con el servidor…";
+          } else {
+            small.textContent =
+              "La primera carga puede tardar un poco. Mantén esta pestaña abierta.";
+          }
+        }, 5000);
+
+        window.addEventListener("unhandledrejection", function (event) {
+          console.error("[UNHANDLED REJECTION]", event.reason);
+          var message =
+            event.reason && (event.reason.message || String(event.reason));
+          if (
+            !state.assetHidden &&
+            /Network Error|Failed to fetch|fetch|WebAssembly|wasm|Main\.data/i.test(
+              message || "",
+            )
+          ) {
+            showLoaderError(
+              "No se pudieron descargar los datos del juego. Comprueba que el servidor esté encendido y vuelve a intentarlo.",
+            );
+          }
+        });
+
+        window.addEventListener("error", function (event) {
+          if (!event || !event.message) return;
+          if (
+            !state.assetHidden &&
+            /Main\.js|WebAssembly|wasm/i.test(
+              (event.filename || "") + " " + event.message,
+            )
+          ) {
+            showLoaderError(
+              "El navegador no pudo iniciar el cliente. Reintenta la carga.",
+            );
+          }
+        });
+
+        var PROXY_WS_URL = "ws://127.0.0.1:7100";
+
+        var Module = {
+          ENV: { MU_INPUT_DIAGNOSTICS: "1" },
+          canvas: byId("canvas"),
+
+          websocket: { url: PROXY_WS_URL },
+
+          print: function (text) {
+            console.log(text);
+            handleClientLog(text);
+          },
+          printErr: function (text) {
+            console.error(text);
+            handleClientLog(text);
+          },
+
+          setStatus: function (text) {
+            if (!text) return;
+            console.log("[STATUS]", text);
+
+            if (text.indexOf("Downloading data") === 0) {
+              var match = /\((\d+)\s*\/\s*(\d+)\)/.exec(text);
+              if (match) {
+                updateDataProgress(
+                  parseInt(match[1], 10),
+                  parseInt(match[2], 10),
+                );
+              } else {
+                var connecting = byId("mu-loader-phase");
+                if (connecting) connecting.textContent = "Conectando con el servidor";
+              }
+              return;
+            }
+
+            if (text.indexOf("Running") === 0) {
+              var starting = byId("mu-loader-phase");
+              if (starting) starting.textContent = "Iniciando el cliente";
+              if (state.dataTotal > 0 && !state.dataComplete) {
+                updateDataProgress(state.dataTotal, state.dataTotal);
+              }
+              deferNextAnimationFrame();
+              switchToAssetLoader();
+              return;
+            }
+
+            if (/error|failed|could not|no se pudo|aborted/i.test(text)) {
+              showLoaderError(text);
+            }
+          },
+
+          totalDependencies: 0,
+          monitorRunDependencies: function (left) {
+            this.totalDependencies = Math.max(this.totalDependencies || 0, left);
+            console.log("[DEPS]", left);
+          },
+
+          onRuntimeInitialized: function () {
+            focusGameCanvas();
+            console.log("[OpenMU] WASM runtime initialized");
+
+            // onRuntimeInitialized fires before callMain() registers the game
+            // loop in this Emscripten build. Defer that first frame by one
+            // animation frame so the asset panel is painted first, even when
+            // the first game frame blocks the main thread loading resources.
+            if (!state.rafDeferred) deferNextAnimationFrame();
+            switchToAssetLoader();
+            setAssetPhaseText("Cargando texturas y modelos");
+            scheduleFirstFrameDetection();
+          },
+        };
+
+        // Main.data.js / Main.js read the global `Module` object.
+        window.Module = Module;
+
+        // Focus & Window Active Management
+        document.addEventListener("pointerdown", focusGameCanvas, true);
+        document.addEventListener("mousedown", focusGameCanvas, true);
+        document.addEventListener("click", focusGameCanvas, true);
+        window.addEventListener("focus", function () {
           focusGameCanvas();
-          console.log("[OpenMU] WASM runtime initialized");
-        },
-      };
+        });
 
-      // The stage is CSS-sized to the viewport, so the browser resize itself is
-      // what tells SDL (and the game) the new size. No JS scaling is needed.
-
-      // Focus & Window Active Management
-      function focusGameCanvas() {
-        var canvas = document.getElementById("canvas");
-        if (!canvas) return;
-        if (document.activeElement !== canvas && canvas.focus) {
-          canvas.focus({ preventScroll: true });
+        // Floating control bar actions
+        var selectServer = byId("btn-select-server");
+        if (selectServer) {
+          selectServer.addEventListener("click", function () {
+            if (typeof Module !== "undefined" && Module._MuWeb_SelectServer) {
+              console.log("[HUD] Selecting Valhalla (0)...");
+              Module._MuWeb_SelectServer(0);
+            }
+          });
         }
-        if (typeof Module !== "undefined" && Module._MuWebSetWindowActive) {
-          Module._MuWebSetWindowActive(1);
-        }
-      }
 
-      document.addEventListener("pointerdown", focusGameCanvas, true);
-      document.addEventListener("mousedown", focusGameCanvas, true);
-      document.addEventListener("click", focusGameCanvas, true);
-      window.addEventListener("focus", function () {
-        focusGameCanvas();
-      });
-
-      // Floating control bar actions
-      document.getElementById("btn-select-server").addEventListener("click", function () {
-        if (typeof Module !== "undefined" && Module._MuWeb_SelectServer) {
-          console.log("[HUD] Selecting Valhalla (0)...");
-          Module._MuWeb_SelectServer(0);
+        var login = byId("btn-login");
+        if (login) {
+          login.addEventListener("click", function () {
+            if (typeof Module !== "undefined" && Module.ccall) {
+              console.log("[HUD] Submitting Login (test400 / test400)...");
+              Module.ccall(
+                "MuWeb_SubmitLogin",
+                "boolean",
+                ["string", "string"],
+                ["test400", "test400"],
+              );
+            }
+          });
         }
-      });
 
-      document.getElementById("btn-login").addEventListener("click", function () {
-        if (typeof Module !== "undefined" && Module.ccall) {
-          console.log("[HUD] Submitting Login (test400 / test400)...");
-          Module.ccall('MuWeb_SubmitLogin', 'boolean', ['string', 'string'], ['test400', 'test400']);
+        var enterWorld = byId("btn-world");
+        if (enterWorld) {
+          enterWorld.addEventListener("click", function () {
+            if (typeof Module !== "undefined" && Module._MuWeb_EnterWorld) {
+              console.log("[HUD] Entering World with character 0...");
+              Module._MuWeb_EnterWorld(0);
+            }
+          });
         }
-      });
-
-      document.getElementById("btn-world").addEventListener("click", function () {
-        if (typeof Module !== "undefined" && Module._MuWeb_EnterWorld) {
-          console.log("[HUD] Entering World with character 0...");
-          Module._MuWeb_EnterWorld(0);
-        }
-      });
+      })();
     </script>
 
-    <script src="Main.data.js"></script>
-    <script async src="Main.js"></script>
+    <script
+      src="Main.data.js"
+      onerror="muLoaderFail('No se pudo descargar el paquete de datos del cliente. Comprueba el servidor y reintenta.')"
+    ></script>
+    <script
+      async
+      src="Main.js"
+      onerror="muLoaderFail('No se pudo descargar el cliente. Comprueba el servidor y reintenta.')"
+    ></script>
   </body>
 </html>
