@@ -581,11 +581,16 @@
           shellHidden: false,
           assetVisible: false,
           assetHidden: false,
+          clientReady: false,
+          webzenDone: false,
           failed: false,
           rafDeferred: false,
           assetPhaseIndex: 0,
           assetLogAt: 0,
           assetTimer: 0,
+          fallbackTimer: 0,
+          slowTimer: 0,
+          loginFallbackTimer: 0,
         };
 
         var ASSET_PHASES = [
@@ -773,9 +778,59 @@
           return String(text || "").replace(/\u001b\[[0-9;]*m/g, "");
         }
 
+        function onWebzenLoadingComplete() {
+          if (state.webzenDone || state.assetHidden) return;
+          state.webzenDone = true;
+          clearInterval(state.assetTimer);
+          setAssetPhaseText("Entrando al mundo");
+          var small = byId("mu-asset-small");
+          if (small) small.textContent = "El mundo está listo. Abriendo la escena…";
+
+          // If a different client build does not emit the login-scene line,
+          // release the cover once the login scene has had ample time to draw.
+          state.loginFallbackTimer = window.setTimeout(function () {
+            onLoginSceneReady();
+          }, 30000);
+        }
+
+        function onLoginSceneReady() {
+          if (state.clientReady || state.assetHidden) return;
+          state.clientReady = true;
+          window.clearTimeout(state.fallbackTimer);
+          window.clearTimeout(state.slowTimer);
+          window.clearTimeout(state.loginFallbackTimer);
+          clearInterval(state.assetTimer);
+
+          setAssetPhaseText("Abriendo la escena");
+          var small = byId("mu-asset-small");
+          if (small) small.textContent = "Entrando al mundo…";
+
+          // "Login Scene init success" is logged at the end of CreateLogInScene,
+          // after the login world, characters, UI and audio are ready. Wait for
+          // the rendered frame (and one more) before lifting the cover.
+          nativeRaf(function () {
+            nativeRaf(function () {
+              window.setTimeout(function () {
+                hideLoaderShell();
+                hideAssetLoader();
+              }, 500);
+            });
+          });
+        }
+
         function handleClientLog(text) {
-          if (!state.assetVisible || state.assetHidden) return;
-          var lower = stripAnsi(text).toLowerCase();
+          if (state.assetHidden) return;
+          var line = stripAnsi(text);
+          var lower = line.toLowerCase();
+          if (lower.indexOf("login scene init success") >= 0) {
+            onLoginSceneReady();
+            return;
+          }
+          if (lower.indexOf("loading ok") >= 0) {
+            onWebzenLoadingComplete();
+            return;
+          }
+          if (!state.assetVisible) return;
           if (lower.indexOf("loaded") < 0) return;
 
           var phase = "";
@@ -818,40 +873,25 @@
           };
         }
 
-        function scheduleFirstFrameDetection() {
-          // The main loop registered by callMain() is deferred by one frame, so
-          // the first game frame runs in the next animation frame. This check
-          // therefore runs after that first (often very slow) frame has drawn.
-          nativeRaf(function () {
-            hideLoaderContent();
-            nativeRaf(function () {
-              nativeRaf(function () {
-                // Keep the artwork visible for a moment longer: the login
-                // scene and audio can still be loading. If the main thread is
-                // busy this timer is delayed too, so the cover never leaves
-                // while the client is blocked.
-                window.setTimeout(function () {
-                  hideLoaderShell();
-                  hideAssetLoader();
-                }, 900);
-              });
-            });
-          });
-
-          window.setTimeout(function () {
-            if (!state.assetHidden) {
-              var small = byId("mu-asset-small");
-              if (small) {
-                small.textContent =
-                  "El cliente sigue cargando. En equipos lentos puede tardar un poco más.";
-              }
-            }
-          }, 45000);
-
-          window.setTimeout(function () {
+        function scheduleCoverFallback() {
+          // Normal exit is driven by the client's "Login Scene init success"
+          // log (after "Loading ok" starts the login scene). These timers only
+          // guarantee that the cover cannot stay forever if a different client
+          // build does not emit those lines.
+          state.fallbackTimer = window.setTimeout(function () {
+            if (state.assetHidden) return;
             hideLoaderShell();
             hideAssetLoader();
           }, 120000);
+
+          state.slowTimer = window.setTimeout(function () {
+            if (state.assetHidden || state.clientReady) return;
+            var small = byId("mu-asset-small");
+            if (small) {
+              small.textContent =
+                "El cliente sigue cargando. En equipos lentos puede tardar un poco más.";
+            }
+          }, 20000);
         }
 
         function focusGameCanvas() {
@@ -985,7 +1025,7 @@
             if (!state.rafDeferred) deferNextAnimationFrame();
             switchToAssetLoader();
             setAssetPhaseText("Cargando texturas y modelos");
-            scheduleFirstFrameDetection();
+            scheduleCoverFallback();
           },
         };
 
