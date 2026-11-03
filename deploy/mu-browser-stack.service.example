@@ -1,0 +1,25 @@
+# OpenMU browser stack -- systemd unit
+#
+# Copy to /etc/systemd/system/mu-browser-stack.service, adjust the paths and
+# user, then:
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now mu-browser-stack
+#
+# start-services.js starts both the web server and the WebSocket proxy.
+
+[Unit]
+Description=OpenMU browser stack
+After=network.target docker.service
+Wants=docker.service
+
+[Service]
+Type=simple
+# User=openmu
+WorkingDirectory=/opt/openmu-browser-stack
+ExecStart=/usr/bin/node start-services.js
+Restart=on-failure
+RestartSec=3
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target

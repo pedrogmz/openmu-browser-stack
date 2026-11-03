@@ -37,5 +37,41 @@ services:
       - "45980:45980"
     command: ["-autostart"]
 
+  stack:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: openmu-browser-stack:local
+    restart: unless-stopped
+    depends_on:
+      openmu:
+        condition: service_started
+    environment:
+      WEB_HOST: 0.0.0.0
+      WEB_PORT: ${WEB_PORT:-8085}
+      WS_HOST: 127.0.0.1
+      WS_PORT: ${WS_PORT:-7100}
+      # Inside the compose network the game servers are reached by service name.
+      MU_CONNECT_HOST: openmu
+      MU_CONNECT_PORT: ${MU_CONNECT_PORT:-44405}
+      MU_GAME_HOST: openmu
+      PROXY_PUBLIC_HOST: ${PROXY_PUBLIC_HOST:-auto}
+      PROXY_PUBLIC_PORT: ${PROXY_PUBLIC_PORT:-auto}
+      # Peers allowed to set X-Forwarded-* (real client IP). Covers loopback
+      # (bare-metal nginx) and Docker's bridge range (nginx on the host or in
+      # another container).
+      TRUSTED_PROXY_IPS: ${TRUSTED_PROXY_IPS:-127.0.0.1,::1,172.16.0.0/12}
+      # nginx on the host terminates TLS (recommended). To serve HTTPS directly
+      # from this container, mount ./certs and set DOCKER_TLS_CERT_PATH /
+      # DOCKER_TLS_KEY_PATH in .env to /app/certs/server.crt and server.key.
+      TLS_CERT_PATH: ${DOCKER_TLS_CERT_PATH:-}
+      TLS_KEY_PATH: ${DOCKER_TLS_KEY_PATH:-}
+    ports:
+      # Published on host loopback only: nginx on the host proxies here.
+      # Use "${WEB_PORT:-8085}:${WEB_PORT:-8085}" for direct LAN access.
+      - "127.0.0.1:${WEB_PORT:-8085}:${WEB_PORT:-8085}"
+    # volumes:
+    #   - ./certs:/app/certs:ro
+
 volumes:
   pgdata:

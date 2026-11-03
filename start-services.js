@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const util = require("util");
-require("dotenv").config({ path: path.join(__dirname, ".env") });
+require("dotenv").config({ path: path.join(__dirname, ".env"), quiet: true });
 
 // Redirect console.log & console.error to proxy.log
 const logFile = fs.createWriteStream(path.join(__dirname, "proxy.log"), { flags: "a" });
@@ -22,17 +22,26 @@ console.error = function (...args) {
 
 // Start WebSocket Proxy
 const { createProxyServer } = require("./src/proxy/ws-server");
+const { loadTlsConfig } = require("./src/tls");
+
+const tls = loadTlsConfig();
 const config = {
   wsPort: parseInt(process.env.WS_PORT || "7100", 10),
   wsHost: process.env.WS_HOST || "0.0.0.0",
   connectHost: process.env.MU_CONNECT_HOST || "127.0.0.1",
   connectPort: parseInt(process.env.MU_CONNECT_PORT || "44405", 10),
   gameHost: process.env.MU_GAME_HOST || "127.0.0.1",
-  proxyPublicHost: process.env.PROXY_PUBLIC_HOST || "127.0.0.1",
-  proxyPublicPort: parseInt(process.env.PROXY_PUBLIC_PORT || "7100", 10),
+  proxyPublicHost: process.env.PROXY_PUBLIC_HOST || "auto",
+  proxyPublicPort:
+    process.env.PROXY_PUBLIC_PORT === "auto"
+      ? "auto"
+      : parseInt(process.env.PROXY_PUBLIC_PORT || "7100", 10),
+  tls,
 };
 createProxyServer(config);
-console.log(`[Services] WebSocket Proxy initialized on port ${config.wsPort}`);
+console.log(
+  `[Services] WebSocket Proxy initialized on port ${config.wsPort} (${tls ? "wss" : "ws"})`,
+);
 
 // Start Web Server
 require("./src/web/server.js");

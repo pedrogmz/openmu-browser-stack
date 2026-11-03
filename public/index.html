@@ -605,6 +605,42 @@
         // own frames must never go through that wrapper.
         var nativeRaf = window.requestAnimationFrame.bind(window);
 
+        // The WASM client hardcodes ws://<host>:7100. Route every socket
+        // through this page's own origin instead: the web server (or nginx)
+        // forwards /ws to the proxy. That keeps one public port, avoids mixed
+        // content on HTTPS pages, and leaves the proxy unreachable from
+        // outside.
+        var WS_PROXY_PATH = "/ws";
+        var NativeWebSocket = window.WebSocket;
+
+        function rewriteWebSocketUrl(url) {
+          var text = String(url || "");
+          if (!/^wss?:\/\//i.test(text)) {
+            return url;
+          }
+          return (
+            (window.location.protocol === "https:" ? "wss:" : "ws:") +
+            "//" +
+            window.location.host +
+            WS_PROXY_PATH
+          );
+        }
+
+        function MuWebSocket(url, protocols) {
+          var target = rewriteWebSocketUrl(url);
+          if (protocols === undefined) {
+            return new NativeWebSocket(target);
+          }
+          return new NativeWebSocket(target, protocols);
+        }
+
+        MuWebSocket.prototype = NativeWebSocket.prototype;
+        MuWebSocket.CONNECTING = NativeWebSocket.CONNECTING;
+        MuWebSocket.OPEN = NativeWebSocket.OPEN;
+        MuWebSocket.CLOSING = NativeWebSocket.CLOSING;
+        MuWebSocket.CLOSED = NativeWebSocket.CLOSED;
+        window.WebSocket = MuWebSocket;
+
         function byId(id) {
           return document.getElementById(id);
         }
@@ -957,7 +993,13 @@
           }
         });
 
-        var PROXY_WS_URL = "ws://127.0.0.1:7100";
+        // Same origin as the page; the web server proxies /ws to the real
+        // WebSocket proxy.
+        var PROXY_WS_URL =
+          (window.location.protocol === "https:" ? "wss:" : "ws:") +
+          "//" +
+          window.location.host +
+          WS_PROXY_PATH;
 
         var Module = {
           ENV: { MU_INPUT_DIAGNOSTICS: "1" },

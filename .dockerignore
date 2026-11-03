@@ -1,0 +1,15 @@
+.git
+.gitignore
+node_modules
+npm-debug.log
+*.log
+.env
+certs
+tests
+clients
+__pycache__
+*.dll
+deploy
+Dockerfile
+.dockerignore
+docker-compose.yml

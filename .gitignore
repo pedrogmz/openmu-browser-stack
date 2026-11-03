@@ -1,6 +1,7 @@
 node_modules/
 .env
 __pycache__/
+certs/
 
 # WASM client files (compiled separately, not part of this repo)
 public/*.wasm
