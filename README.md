@@ -595,6 +595,21 @@ safe `127.0.0.1` placeholder and the client shim connects to
 `wss://<page-origin>/ws`. If it persists, hard-refresh so the browser drops a
 cached `index.html`/`Main.js`.
 
+**`No available adapters` / `requestAdapter returned null`:** Chrome or Edge
+could not create a WebGPU adapter. Integrated graphics are supported; a
+dedicated GPU is not required. Open `chrome://gpu` and check that WebGPU is
+hardware accelerated, enable *Use graphics acceleration when available* in the
+browser settings, update the GPU driver from Intel/AMD/NVIDIA, and restart the
+browser. If WebGPU is blocklisted, try `chrome://flags/#ignore-gpu-blocklist`
+and `chrome://flags/#enable-unsafe-webgpu`. The
+`powerPreference option is currently ignored` warning on Windows is harmless:
+Chrome always uses the laptop's integrated GPU.
+
+This client is WebGPU-only and has no WebGL fallback, so hardware that cannot
+create a WebGPU adapter cannot run it. The loader now checks for a WebGPU
+adapter before downloading `Main.data`, and shows these steps instead of a
+console-only failure.
+
 **OpenMU won't start:** `docker compose down -v && docker compose up -d` to clean up and restart.
 
 **Inventory crashes with `RuntimeError: index out of bounds`:** The client is

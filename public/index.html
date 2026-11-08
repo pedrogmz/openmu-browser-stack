@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="mu-webgl-client-url" content="" />
     <title>OpenMU Browser Stack - WebMU</title>
     <link rel="preload" as="image" href="loading_screen.jpg" />
     <style>
@@ -1014,6 +1015,14 @@
           printErr: function (text) {
             console.error(text);
             handleClientLog(text);
+            if (
+              text.indexOf("requestAdapter returned null") >= 0 ||
+              text.indexOf("Requesting WebGPU adapter failed") >= 0
+            ) {
+              showWebGpuError(
+                "WebGPU no pudo crear un adaptador durante el arranque del cliente.",
+              );
+            }
           },
 
           setStatus: function (text) {
@@ -1117,17 +1126,168 @@
             }
           });
         }
+
+        // ------------------------------------------------------------------
+        // WebGPU preflight + dynamic client bootstrap
+        // ------------------------------------------------------------------
+        // Do not download Main.data.js until we know the browser can create a
+        // WebGPU adapter. The client can fall back to WebGPU compatibility mode
+        // (D3D11/GLES-class hardware), but it still has no WebGL renderer; failing
+        // early avoids a ~800 MB download on unsupported GPUs.
+        var forceCompat =
+          new URLSearchParams(window.location.search).get("compat") === "1";
+        window.MU_WEBGPU_COMPAT = forceCompat;
+
+        // A separate WebGL client can be configured here (or by setting
+        // window.MU_WEBGL_CLIENT_URL before this script runs). Leave it empty
+        // to show the unsupported message instead of redirecting.
+        var webglClientUrl =
+          window.MU_WEBGL_CLIENT_URL ||
+          (document.querySelector('meta[name="mu-webgl-client-url"]') || {}).content ||
+          "";
+
+        function redirectToWebGL(reason) {
+          if (!webglClientUrl) return false;
+
+          var target;
+          try {
+            target = new URL(webglClientUrl, window.location.href);
+          } catch (error) {
+            console.error(
+              "[OpenMU] Invalid WebGL client URL",
+              webglClientUrl,
+              error,
+            );
+            return false;
+          }
+
+          if (target.href === window.location.href) return false;
+
+          console.warn(
+            "[OpenMU] WebGPU unavailable (" +
+              reason +
+              "); redirecting to the WebGL client: " +
+              target.href,
+          );
+          window.location.replace(target.href);
+          return true;
+        }
+
+        function showWebGpuError(detail) {
+          showLoaderError(
+            detail +
+              " Comprueba el diagnóstico de WebGPU de tu navegador, " +
+              "activa la aceleración gráfica, actualiza los drivers de la GPU y reinicia. " +
+              "Este cliente necesita WebGPU (core o compatibility mode).",
+          );
+        }
+
+        function loadScript(src, onLoad, onError) {
+          var script = document.createElement("script");
+          script.src = src;
+          script.async = false;
+          script.onload = onLoad;
+          script.onerror = onError;
+          document.body.appendChild(script);
+        }
+
+        function loadClient() {
+          var phase = byId("mu-loader-phase");
+          if (phase) phase.textContent = "Preparando la descarga";
+
+          loadScript(
+            "Main.data.js",
+            function () {
+              loadScript(
+                "Main.js",
+                null,
+                function () {
+                  showLoaderError(
+                    "No se pudo descargar el cliente. Comprueba el servidor y reintenta.",
+                  );
+                },
+              );
+            },
+            function () {
+              showLoaderError(
+                "No se pudo descargar el paquete de datos del cliente. Comprueba el servidor y reintenta.",
+              );
+            },
+          );
+        }
+
+        async function checkWebGpu() {
+          var phase = byId("mu-loader-phase");
+          if (phase) phase.textContent = "Comprobando WebGPU";
+
+          if (!navigator.gpu) {
+            if (!forceCompat && redirectToWebGL("navigator.gpu missing")) return;
+            showWebGpuError(
+              "Tu navegador no expone WebGPU. Usa Chrome/Edge actualizados o Safari 26+, y abre el juego por HTTPS o localhost.",
+            );
+            return;
+          }
+
+          if (typeof navigator.gpu.requestAdapter !== "function") {
+            if (!forceCompat && redirectToWebGL("requestAdapter missing")) return;
+            showWebGpuError(
+              "Tu navegador no permite solicitar un adaptador WebGPU.",
+            );
+            return;
+          }
+
+          var coreError = null;
+          var compatError = null;
+
+          if (!forceCompat) {
+            try {
+              var core = await navigator.gpu.requestAdapter();
+              if (core) {
+                window.MU_WEBGPU_COMPAT = false;
+                loadClient();
+                return;
+              }
+            } catch (error) {
+              coreError = error;
+            }
+          }
+
+          try {
+            var compat = await navigator.gpu.requestAdapter({
+              featureLevel: "compatibility",
+            });
+            if (compat) {
+              window.MU_WEBGPU_COMPAT = true;
+              console.log("[OpenMU] WebGPU compatibility adapter selected");
+              loadClient();
+              return;
+            }
+          } catch (error) {
+            compatError = error;
+          }
+
+          if (coreError) {
+            console.error("[OpenMU] WebGPU core adapter check failed", coreError);
+          }
+          if (compatError) {
+            console.error(
+              "[OpenMU] WebGPU compatibility adapter check failed",
+              compatError,
+            );
+          }
+          if (
+            !forceCompat &&
+            redirectToWebGL("no core or compatibility adapter")
+          ) {
+            return;
+          }
+          showWebGpuError(
+            "WebGPU no encontró una GPU compatible (ni core ni compatibility mode).",
+          );
+        }
+
+        checkWebGpu();
       })();
     </script>
-
-    <script
-      src="Main.data.js"
-      onerror="muLoaderFail('No se pudo descargar el paquete de datos del cliente. Comprueba el servidor y reintenta.')"
-    ></script>
-    <script
-      async
-      src="Main.js"
-      onerror="muLoaderFail('No se pudo descargar el cliente. Comprueba el servidor y reintenta.')"
-    ></script>
   </body>
 </html>
