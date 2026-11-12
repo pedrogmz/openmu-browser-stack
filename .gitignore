@@ -8,6 +8,9 @@ public/*.wasm
 public/*.wasm.bak
 public/*.data
 public/*.js
+!public/mu-data-loader.js
+# Generated data buckets and manifest (scripts/build-data-buckets.js)
+public/assets/
 
 # OS files
 .DS_Store

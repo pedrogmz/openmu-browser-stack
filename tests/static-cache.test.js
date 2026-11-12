@@ -196,6 +196,29 @@ test("missing files and traversal are not cacheable", async () => {
   await traversal.arrayBuffer();
 });
 
+test("content-addressed data buckets are immutable, the manifest is not", async () => {
+  fs.mkdirSync(path.join(publicDir, "assets"), { recursive: true });
+  const bucket = "assets/data-0123456789abcdef0123.data";
+  writeAsset(bucket, "bucket");
+  writeAsset("assets/data-manifest.json", "{}");
+
+  const res = await fetch(`${baseUrl}/${bucket}`);
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get("cache-control"), "public, max-age=31536000, immutable");
+  assert.ok(res.headers.get("etag"));
+  assertCrossOriginIsolation(res);
+  await res.arrayBuffer();
+
+  const manifest = await fetch(`${baseUrl}/assets/data-manifest.json`);
+  assert.equal(manifest.headers.get("cache-control"), "no-cache");
+  assert.match(manifest.headers.get("content-type"), /^application\/json/);
+  await manifest.arrayBuffer();
+
+  // Main.data keeps a fixed name, so it must keep revalidating.
+  const main = await fetch(urlFor("Main.data"), { method: "HEAD" });
+  assert.equal(main.headers.get("cache-control"), "no-cache");
+});
+
 test("other methods are rejected", async () => {
   const res = await fetch(urlFor("Main.data"), { method: "POST" });
   assert.equal(res.status, 405);

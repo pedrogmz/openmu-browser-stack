@@ -73,7 +73,8 @@ cp .env.example .env
 ```
 
 Put the compiled WASM client in `public/` (`Main.js`, `Main.wasm`, `Main.data`,
-...). Those files are not stored in git; see [WASM Client](#wasm-client).
+`Main.data.js` and the `assets/` data buckets). Those files are not stored in
+git; see [WASM Client](#wasm-client).
 
 ### 2. Start everything
 
@@ -542,12 +543,34 @@ curl -sI http://localhost:8085/Main.wasm
 
 Browsers do not store very large single responses in their HTTP cache
 (Firefox's default per-entry limit is 50 MB; Chromium allows one eighth of the
-cache size). The ~775 MB `Main.data` will usually be fetched again even though
-the server supports revalidation; `Main.wasm`, `Main.js` and `index.html` are
-cached. Splitting the data package into smaller files is tracked separately.
+cache size), so the game data is not shipped as one ~750 MB file. See below.
 
-Possible follow-up for production: content-hashed file names for build outputs
-would allow `Cache-Control: immutable` with no revalidation at all.
+### Game data buckets
+
+`Data/` and `fonts/` are packed into about 30 buckets of 20–32 MB under
+`public/assets/`, plus `public/assets/data-manifest.json`. `Main.data` keeps
+only the small build-generated files (shaders, `config.ini`).
+
+- Each bucket is named after the SHA256 of its bytes
+  (`data-<hash>.data`), so the server marks it
+  `Cache-Control: public, max-age=31536000, immutable`: the browser reuses it
+  without asking. The manifest keeps `no-cache`.
+- Bucket boundaries depend on the file paths, not on running offsets, so
+  editing a file replaces only its own bucket, and adding one changes at most
+  a couple. A rebuild only makes browsers download what changed.
+- `public/mu-data-loader.js` reads the manifest, downloads the buckets (three
+  at a time, with a 30 s stall timeout, retries and a SHA256 check), mounts
+  every file at its usual path, and holds the runtime until all are mounted.
+  Without a manifest it does nothing, so a single `Main.data` still works.
+
+MuMain's `build-wasm.ps1` builds the buckets. To build them by hand:
+
+```bash
+node scripts/build-data-buckets.js --out public/assets --add ../MuMain/src/bin/Data@/Data --add ../MuMain/src/bin/fonts@/fonts
+```
+
+Unchanged buckets are left as they are, and buckets the new manifest no longer
+lists are deleted.
 
 ## MU Online Protocol
 

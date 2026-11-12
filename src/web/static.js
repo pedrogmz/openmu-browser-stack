@@ -6,6 +6,7 @@ const MIME_TYPES = {
   ".js": "application/javascript; charset=utf-8",
   ".wasm": "application/wasm",
   ".data": "application/octet-stream",
+  ".json": "application/json; charset=utf-8",
   ".css": "text/css; charset=utf-8",
   ".png": "image/png",
   ".jpg": "image/jpeg",
@@ -21,6 +22,17 @@ const MIME_TYPES = {
 // a rebuilt one is downloaded again. `no-store` would force the full ~775 MB
 // download on every load.
 const CACHE_CONTROL = "no-cache";
+
+// Data buckets are named after a SHA256 of their bytes
+// (scripts/build-data-buckets.js): a given URL never changes content, so the
+// browser may reuse it without asking. Everything else, including the bucket
+// manifest, keeps revalidating.
+const IMMUTABLE_CACHE_CONTROL = "public, max-age=31536000, immutable";
+const IMMUTABLE_PATH = /^\/assets\/data-[0-9a-f]{20}\.data$/;
+
+function cacheControlFor(filePath) {
+  return IMMUTABLE_PATH.test(filePath) ? IMMUTABLE_CACHE_CONTROL : CACHE_CONTROL;
+}
 
 // Strong validator from size + modification time (ms). Rebuilding or copying a
 // new client into public/ changes the mtime, which changes the tag.
@@ -103,7 +115,7 @@ function createStaticHandler(publicDir) {
 
       const etag = computeEtag(stats);
       const validators = {
-        "Cache-Control": CACHE_CONTROL,
+        "Cache-Control": cacheControlFor(filePath),
         ETag: etag,
         "Last-Modified": stats.mtime.toUTCString(),
       };
@@ -134,4 +146,9 @@ function createStaticHandler(publicDir) {
   };
 }
 
-module.exports = { createStaticHandler, computeEtag, CACHE_CONTROL };
+module.exports = {
+  createStaticHandler,
+  computeEtag,
+  CACHE_CONTROL,
+  IMMUTABLE_CACHE_CONTROL,
+};
