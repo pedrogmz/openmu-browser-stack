@@ -2,14 +2,16 @@ const http = require("http");
 const https = require("https");
 const net = require("net");
 const tls = require("tls");
-const fs = require("fs");
 const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, "../../.env"), quiet: true });
 const { loadTlsConfig } = require("../tls");
+const { createStaticHandler } = require("./static");
 
 const PORT = parseInt(process.env.WEB_PORT || "8080", 10);
 const HOST = process.env.WEB_HOST || "0.0.0.0";
-const PUBLIC_DIR = path.join(__dirname, "../../public");
+const PUBLIC_DIR = process.env.WEB_PUBLIC_DIR
+  ? path.resolve(process.env.WEB_PUBLIC_DIR)
+  : path.join(__dirname, "../../public");
 const TLS_CONFIG = loadTlsConfig();
 
 // Only these peers may supply X-Forwarded-* headers. Loopback covers bare-metal
@@ -29,19 +31,7 @@ const WS_FORWARD_PORT = parseInt(
   10,
 );
 
-const MIME_TYPES = {
-  ".html": "text/html; charset=utf-8",
-  ".js": "application/javascript; charset=utf-8",
-  ".wasm": "application/wasm",
-  ".data": "application/octet-stream",
-  ".css": "text/css; charset=utf-8",
-  ".png": "image/png",
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".webp": "image/webp",
-  ".svg": "image/svg+xml",
-  ".ico": "image/x-icon",
-};
+const serveStatic = createStaticHandler(PUBLIC_DIR);
 
 const requestHandler = (req, res) => {
   const urlPath = req.url.split("?")[0];
@@ -62,31 +52,7 @@ const requestHandler = (req, res) => {
   res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
   res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
 
-  const filePath = urlPath === "/" ? "/index.html" : urlPath;
-  const fullPath = path.join(PUBLIC_DIR, filePath);
-
-  if (!fullPath.startsWith(PUBLIC_DIR)) {
-    res.writeHead(403);
-    res.end("Forbidden");
-    return;
-  }
-
-  const ext = path.extname(fullPath);
-  const contentType = MIME_TYPES[ext] || "application/octet-stream";
-
-  fs.stat(fullPath, (err, stats) => {
-    if (err || !stats.isFile()) {
-      res.writeHead(404);
-      res.end("Not found");
-      return;
-    }
-
-    res.writeHead(200, {
-      "Content-Type": contentType,
-      "Content-Length": stats.size,
-    });
-    fs.createReadStream(fullPath).pipe(res);
-  });
+  serveStatic(req, res);
 };
 
 const server = TLS_CONFIG
