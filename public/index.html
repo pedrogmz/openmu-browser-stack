@@ -1195,24 +1195,34 @@
           var phase = byId("mu-loader-phase");
           if (phase) phase.textContent = "Preparando la descarga";
 
+          function dataError() {
+            showLoaderError(
+              "No se pudo descargar el paquete de datos del cliente. Comprueba el servidor y reintenta.",
+            );
+          }
+
+          // mu-data-loader.js starts the asset bucket downloads and registers
+          // its run dependency before Main.js can start the runtime.
           loadScript(
-            "Main.data.js",
+            "mu-data-loader.js",
             function () {
               loadScript(
-                "Main.js",
-                null,
+                "Main.data.js",
                 function () {
-                  showLoaderError(
-                    "No se pudo descargar el cliente. Comprueba el servidor y reintenta.",
+                  loadScript(
+                    "Main.js",
+                    null,
+                    function () {
+                      showLoaderError(
+                        "No se pudo descargar el cliente. Comprueba el servidor y reintenta.",
+                      );
+                    },
                   );
                 },
+                dataError,
               );
             },
-            function () {
-              showLoaderError(
-                "No se pudo descargar el paquete de datos del cliente. Comprueba el servidor y reintenta.",
-              );
-            },
+            dataError,
           );
         }
 
