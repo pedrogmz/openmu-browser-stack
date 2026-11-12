@@ -523,6 +523,32 @@ This repository **does not include** the game client. You need to compile a MU O
 3. Add `<script async src="YourClient.js"></script>` to `public/index.html`
 4. `Module.websocket.url` already points to the proxy (`ws://127.0.0.1:7100`)
 
+### Browser caching of the client files
+
+The web server sends `Cache-Control: no-cache`, a strong `ETag` (file size +
+modification time) and `Last-Modified` for every file in `public/`, and answers
+conditional requests with `304 Not Modified` and no body. The browser keeps a
+copy but checks it before each use: an unchanged file costs a 304, while a
+rebuilt file has a new mtime and is downloaded again on the next load.
+COOP/COEP headers are sent on `200` and `304` alike.
+
+```bash
+npm test
+```
+
+```bash
+curl -sI http://localhost:8085/Main.wasm
+```
+
+Browsers do not store very large single responses in their HTTP cache
+(Firefox's default per-entry limit is 50 MB; Chromium allows one eighth of the
+cache size). The ~775 MB `Main.data` will usually be fetched again even though
+the server supports revalidation; `Main.wasm`, `Main.js` and `index.html` are
+cached. Splitting the data package into smaller files is tracked separately.
+
+Possible follow-up for production: content-hashed file names for build outputs
+would allow `Cache-Control: immutable` with no revalidation at all.
+
 ## MU Online Protocol
 
 The proxy understands MU packet framing:

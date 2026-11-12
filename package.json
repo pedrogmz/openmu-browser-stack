@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/proxy/index.js & node src/web/server.js",
     "proxy": "node src/proxy/index.js",
-    "serve": "node src/web/server.js"
+    "serve": "node src/web/server.js",
+    "test": "node --test tests/*.test.js"
   },
   "keywords": [
     "mu-online",
