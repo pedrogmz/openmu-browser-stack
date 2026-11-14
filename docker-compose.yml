@@ -1,3 +1,6 @@
+# Fixed project name: keeps the same containers/volume even if the folder is renamed.
+name: open-mu-browser-proxy
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -16,7 +19,12 @@ services:
       retries: 10
 
   openmu:
-    image: munique/openmu
+    # Built from the local fork (../open-mu). Set OPENMU_SRC to point elsewhere.
+    build:
+      context: ${OPENMU_SRC:-../open-mu}/src
+      dockerfile: Startup/Dockerfile
+    image: openmu-fork:local
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
@@ -35,13 +43,13 @@ services:
       # Chat Server
       - "55980:55980"
       - "45980:45980"
-    command: ["-autostart"]
+    # -autostart is already part of the fork's Dockerfile ENTRYPOINT.
 
   stack:
     build:
       context: .
       dockerfile: Dockerfile
-    image: openmu-browser-stack:local
+    image: openmu-browser-proxy:local
     restart: unless-stopped
     depends_on:
       openmu:

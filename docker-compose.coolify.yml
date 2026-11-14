@@ -1,0 +1,102 @@
+# Coolify deployment: OpenMU fork + browser proxy, both from GHCR.
+#
+# Use it as a "Docker Compose" resource in Coolify, pointing "Docker Compose
+# Location" at /docker-compose.coolify.yml (or paste it into an empty compose
+# service). Nothing is built on the server.
+#
+# Images (private on GHCR): log the Coolify server in once, over SSH, with a
+# GitHub token that has read:packages:
+#   docker login ghcr.io -u pedrogmz
+#
+# Coolify "magic" variables used below (generated once and kept between deploys):
+#   SERVICE_FQDN_STACK_8085   domain of the game (web client + /ws); Traefik adds TLS
+#   SERVICE_FQDN_OPENMU_8080  domain of the OpenMU admin panel (remove it to keep the
+#                             panel private)
+#   SERVICE_USER_* / SERVICE_PASSWORD_*  database and admin panel credentials,
+#                             shown in the resource's "Environment Variables" tab
+#
+# No game TCP port is published: the browser only talks to the stack over
+# HTTPS/WSS and the stack reaches OpenMU through the internal compose network.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${SERVICE_USER_POSTGRES}
+      POSTGRES_PASSWORD: ${SERVICE_PASSWORD_POSTGRES}
+      POSTGRES_DB: openmu
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d openmu"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  openmu:
+    # Published by .github/workflows/ghcr.yml in the fork. Pin a sha-<commit> tag
+    # with OPENMU_TAG to roll back.
+    image: ghcr.io/pedrogmz/open-mu:${OPENMU_TAG:-latest}
+    pull_policy: always
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SERVICE_FQDN_OPENMU_8080: ""
+      ASPNETCORE_URLS: http://+:8080
+      ASPNETCORE_ENVIRONMENT: Production
+      DB_HOST: postgres
+      # Superuser: OpenMU uses it to create the database and its own roles.
+      DB_ADMIN_USER: ${SERVICE_USER_POSTGRES}
+      DB_ADMIN_PW: ${SERVICE_PASSWORD_POSTGRES}
+      # Without a bootstrap user the admin panel has no login until the first
+      # user is created inside it, so it is always set here.
+      OPENMU_ADMIN_USER: ${OPENMU_ADMIN_USER:-admin}
+      OPENMU_ADMIN_PASSWORD: ${SERVICE_PASSWORD_ADMIN}
+      # Optional base32 TOTP secret for a second factor on the admin panel.
+      OPENMU_ADMIN_TOTP_SECRET: ${OPENMU_ADMIN_TOTP_SECRET:-}
+    expose:
+      - "8080"   # admin panel (through Traefik)
+      - "44405"  # connect server
+      - "55901-55906"
+      - "45901-45906"
+    volumes:
+      # Admin panel session keys: without it every redeploy logs everybody out.
+      - adminpanel-keys:/app/data-protection-keys
+      - openmu-logs:/app/logs
+
+  stack:
+    # Built and pushed from a dev machine with scripts/publish-image.ps1 (the
+    # WASM client is baked in). Pin a <date>-<sha> tag with PROXY_TAG to roll back.
+    image: ghcr.io/pedrogmz/openmu-browser-proxy:${PROXY_TAG:-latest}
+    pull_policy: always
+    restart: unless-stopped
+    depends_on:
+      openmu:
+        condition: service_started
+    environment:
+      SERVICE_FQDN_STACK_8085: ""
+      WEB_HOST: 0.0.0.0
+      WEB_PORT: 8085
+      WS_HOST: 127.0.0.1
+      WS_PORT: 7100
+      MU_CONNECT_HOST: openmu
+      MU_CONNECT_PORT: 44405
+      MU_GAME_HOST: openmu
+      # "auto" writes the public host/port the browser used (Traefik's
+      # X-Forwarded-Host / X-Forwarded-Port) into ConnectionInfo.
+      PROXY_PUBLIC_HOST: auto
+      PROXY_PUBLIC_PORT: auto
+      # Traefik runs in Coolify's docker network: trust the docker private
+      # ranges so the real client IP from X-Forwarded-For is used. Nothing else
+      # can reach the container, since no port is published.
+      TRUSTED_PROXY_IPS: 127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
+    expose:
+      - "8085"
+
+volumes:
+  pgdata:
+  adminpanel-keys:
+  openmu-logs:
